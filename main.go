@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 	v1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -54,38 +55,62 @@ func newK8sClient() *kubernetes.Clientset {
 	return clientset
 }
 
-func checkDeployStatus(e interface{}, ch chan bool, image string) {
-	var deployed bool
-	d := convertEvent(e)
-	for _, c := range d.Spec.Template.Spec.Containers {
-		if c.Image == image {
-			if d.ObjectMeta.Generation != d.Status.ObservedGeneration {
-				log.Printf("[%v] %v updated to use %v, waiting for rollout",
-					d.ObjectMeta.Namespace,
-					d.ObjectMeta.Name,
-					image)
-				deployed = false
-			} else {
-				log.Printf("[%v] %v updated (Pods: %v updated, %v ready, %v desired)",
-					d.ObjectMeta.Namespace,
-					d.ObjectMeta.Name,
-					d.Status.UpdatedReplicas,
-					d.Status.ReadyReplicas,
-					*d.Spec.Replicas)
-				deployed = true
-			}
+func checkImage(i string, containers []corev1.Container) bool {
+	for _, c := range containers {
+		if c.Image == i {
+			return true
 		}
 	}
-	if d.Status.UpdatedReplicas < *d.Spec.Replicas {
-		deployed = false
+	return false
+
+}
+
+func checkGeneration(d v1.Deployment) bool {
+	return d.ObjectMeta.Generation == d.Status.ObservedGeneration
+}
+
+func checkConditions(conditions []v1.DeploymentCondition) bool {
+	for _, c := range conditions {
+		if c.Type != "Progressing" {
+			continue
+		}
+		if c.Status != "True" {
+			continue
+		}
+		if c.Reason != "NewReplicaSetAvailable" {
+			continue
+		}
+		return true
 	}
-	if d.Status.ReadyReplicas < *d.Spec.Replicas {
-		deployed = false
+	return false
+}
+
+func checkReplicas(d v1.Deployment) bool {
+	if d.Status.UpdatedReplicas != *d.Spec.Replicas {
+		return false
 	}
-	if deployed {
-		log.Printf("[%v] %v deployed", d.ObjectMeta.Namespace, d.ObjectMeta.Name)
-		ch <- true
+	if d.Status.ReadyReplicas != *d.Spec.Replicas {
+		return false
 	}
+	return true
+}
+
+func checkDeployStatus(e interface{}, ch chan bool, image string) {
+	d := convertEvent(e)
+	if !checkImage(image, d.Spec.Template.Spec.Containers) {
+		return
+	}
+	if !checkGeneration(d) {
+		return
+	}
+	if !checkConditions(d.Status.Conditions) {
+		return
+	}
+	if !checkReplicas(d) {
+		return
+	}
+	log.Printf("[%v] %v deployed", d.ObjectMeta.Namespace, d.ObjectMeta.Name)
+	ch <- true
 }
 
 func convertEvent(o interface{}) v1.Deployment {
