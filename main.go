@@ -19,7 +19,8 @@ import (
 )
 
 var (
-	k8sClient *kubernetes.Clientset = newK8sClient()
+	httpClient                       = &http.Client{}
+	k8sClient  *kubernetes.Clientset = newK8sClient()
 )
 
 type verifyReq struct {
@@ -41,6 +42,28 @@ type successBody struct {
 	TaskID string `json:"taskId"`
 	JobID  string `json:"jobId"`
 	Result string `json:"result"`
+}
+
+func buildPipelinePayload(v verifyReq) []byte {
+	payload := map[string]string{
+		"Name":   "TaskCompleted",
+		"TaskID": *v.TaskInstanceID,
+		"JobID":  *v.JobID,
+		"Result": "successed",
+	}
+	p, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("Failed to build pipeline poayload: %v", err.Error())
+	}
+	return p
+}
+
+func buildPipelineURL(v verifyReq) string {
+	return *v.PlanURL + *v.ProjectID + "/_apis/distributedtask/hubs/" +
+		*v.HubName +
+		"/plans/" +
+		*v.PlanID +
+		"/events?api-version=2.0-preview.1"
 }
 
 func checkImage(i string, containers []corev1.Container) bool {
@@ -121,22 +144,10 @@ func newK8sClient() *kubernetes.Clientset {
 }
 
 func notifyPipeline(v verifyReq) {
-	payload := &successBody{
-		Name:   "TaskCompleted",
-		TaskID: *v.TaskInstanceID,
-		JobID:  *v.JobID,
-		Result: "successed",
-	}
-	p, err := json.Marshal(payload)
-	if err != nil {
-		log.Printf("Failed to build pipeline poayload: %v", err.Error())
-	}
-	url := *v.PlanURL + *v.ProjectID + "/_apis/distributedtask/hubs/" + *v.HubName + "/plans/" + *v.PlanID + "/events?api-version=2.0-preview.1"
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(p))
+	req, err := http.NewRequest("POST", buildPipelineURL(v), bytes.NewBuffer(buildPipelinePayload(v)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(":"+*v.AuthToken)))
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		log.Println(err.Error())
 	}
