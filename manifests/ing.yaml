@@ -1,0 +1,18 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: deployed
+  namespace: default
+spec:
+  rules:
+  - host: deployed.preferred.fqdn.tld
+    http:
+      paths:
+      - backend:
+          serviceName: deployed
+          servicePort: 80
+        path: /
+  tls:
+  - hosts:
+    - deployed.preferred.fqdn.tld
+    secretName: tls-secret

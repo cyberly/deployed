@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployed
+  namespace: default
+  labels:
+    app: deployed
+  annotations:
+    fluxcd.io/automated: "true"
+    fluxcd.io/tag.deployed: semver:~1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: deployed
+  template:
+    metadata:
+      labels:
+        app: deployed
+    spec:
+      containers:
+      - name: deployed
+        image: cyberly/deployed:1.0
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: 500m
+            memory: 256Mi
+          requests:
+            cpu: 200m
+            memory: 128Mi
+      serviceAccountName: deployed
+      automountServiceAccountToken: true
