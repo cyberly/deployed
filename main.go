@@ -37,11 +37,11 @@ type reqBody struct {
 	AuthToken      *string `json:"AuthToken"`
 }
 
-func buildPipelinePayload(v reqBody) []byte {
+func buildPipelinePayload(r reqBody) []byte {
 	payload := map[string]string{
 		"Name":   "TaskCompleted",
-		"TaskID": *v.TaskInstanceID,
-		"JobID":  *v.JobID,
+		"TaskID": *r.TaskInstanceID,
+		"JobID":  *r.JobID,
 		"Result": "successed",
 	}
 	p, err := json.Marshal(payload)
@@ -51,11 +51,24 @@ func buildPipelinePayload(v reqBody) []byte {
 	return p
 }
 
-func buildPipelineURL(v reqBody) string {
-	return *v.PlanURL + *v.ProjectID + "/_apis/distributedtask/hubs/" +
-		*v.HubName +
+func buildPipelineRequest(r reqBody) *http.Request {
+	req, err := http.NewRequest("POST",
+		buildPipelineURL(r),
+		bytes.NewBuffer(buildPipelinePayload(r)))
+	if err != nil {
+		log.Printf("Failed assembling pipeline request: %v", err.Error())
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization",
+		"Basic "+base64.StdEncoding.EncodeToString([]byte(":"+*r.AuthToken)))
+	return req
+}
+
+func buildPipelineURL(r reqBody) string {
+	return *r.PlanURL + *r.ProjectID + "/_apis/distributedtask/hubs/" +
+		*r.HubName +
 		"/plans/" +
-		*v.PlanID +
+		*r.PlanID +
 		"/events?api-version=2.0-preview.1"
 }
 
@@ -136,17 +149,14 @@ func newK8sClient() *kubernetes.Clientset {
 	return clientset
 }
 
-func notifyPipeline(v reqBody) {
-	req, err := http.NewRequest("POST", buildPipelineURL(v), bytes.NewBuffer(buildPipelinePayload(v)))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(":"+*v.AuthToken)))
+func notifyPipeline(r reqBody) {
+	req := buildPipelineRequest(r)
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		log.Printf("Error talking to Azure Devops: %v", err.Error())
 	}
 	defer resp.Body.Close()
-	log.Printf("[%v] Notified Azure Devops pipeline, got \"%v\"", *v.Namespace, resp.Status)
-
+	log.Printf("[%v] Notified Azure Devops pipeline, got \"%v\"", *r.Namespace, resp.Status)
 }
 
 func watchDeploymentEvents(req reqBody) {
