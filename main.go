@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	v1 "k8s.io/api/apps/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
@@ -69,7 +69,7 @@ func checkImage(i string, containers []corev1.Container) bool {
 
 }
 
-func checkConditions(conditions []v1.DeploymentCondition) bool {
+func checkConditions(conditions []appsv1.DeploymentCondition) bool {
 	for _, c := range conditions {
 		if c.Type != "Progressing" {
 			continue
@@ -103,11 +103,11 @@ func checkDeployStatus(e interface{}, ch chan bool, image string) {
 	ch <- true
 }
 
-func checkGeneration(d v1.Deployment) bool {
+func checkGeneration(d appsv1.Deployment) bool {
 	return d.ObjectMeta.Generation == d.Status.ObservedGeneration
 }
 
-func checkReplicas(d v1.Deployment) bool {
+func checkReplicas(d appsv1.Deployment) bool {
 	if d.Status.UpdatedReplicas != *d.Spec.Replicas {
 		return false
 	}
@@ -117,8 +117,8 @@ func checkReplicas(d v1.Deployment) bool {
 	return true
 }
 
-func convertEvent(o interface{}) v1.Deployment {
-	var d v1.Deployment
+func convertEvent(o interface{}) appsv1.Deployment {
+	var d appsv1.Deployment
 	j, _ := json.Marshal(o)
 	json.Unmarshal(j, &d)
 	return d
@@ -161,7 +161,7 @@ func watchDeploymentEvents(req reqBody) {
 	// Start the listener and specify handlers for event types
 	_, controller := cache.NewInformer(
 		watchlist,
-		&v1.Deployment{},
+		&appsv1.Deployment{},
 		time.Second*0,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
