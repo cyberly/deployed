@@ -23,7 +23,7 @@ var (
 	k8sClient  *kubernetes.Clientset = newK8sClient()
 )
 
-type verifyReq struct {
+type reqBody struct {
 	Namespace      *string `json:"Namespace"`
 	Image          *string `json:"Image"`
 	Timeout        int     `json:"Timeout"`
@@ -37,14 +37,7 @@ type verifyReq struct {
 	AuthToken      *string `json:"AuthToken"`
 }
 
-type successBody struct {
-	Name   string `json:"name"`
-	TaskID string `json:"taskId"`
-	JobID  string `json:"jobId"`
-	Result string `json:"result"`
-}
-
-func buildPipelinePayload(v verifyReq) []byte {
+func buildPipelinePayload(v reqBody) []byte {
 	payload := map[string]string{
 		"Name":   "TaskCompleted",
 		"TaskID": *v.TaskInstanceID,
@@ -58,7 +51,7 @@ func buildPipelinePayload(v verifyReq) []byte {
 	return p
 }
 
-func buildPipelineURL(v verifyReq) string {
+func buildPipelineURL(v reqBody) string {
 	return *v.PlanURL + *v.ProjectID + "/_apis/distributedtask/hubs/" +
 		*v.HubName +
 		"/plans/" +
@@ -143,7 +136,7 @@ func newK8sClient() *kubernetes.Clientset {
 	return clientset
 }
 
-func notifyPipeline(v verifyReq) {
+func notifyPipeline(v reqBody) {
 	req, err := http.NewRequest("POST", buildPipelineURL(v), bytes.NewBuffer(buildPipelinePayload(v)))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(":"+*v.AuthToken)))
@@ -156,7 +149,7 @@ func notifyPipeline(v verifyReq) {
 
 }
 
-func watchDeploymentEvents(req verifyReq) {
+func watchDeploymentEvents(req reqBody) {
 	listenerCh := make(chan struct{})
 	statusCh := make(chan bool)
 	// Configure deployment listener
@@ -190,7 +183,7 @@ func watchDeploymentEvents(req verifyReq) {
 }
 
 func verifyHandler(w http.ResponseWriter, r *http.Request) {
-	var req = verifyReq{}
+	var req = reqBody{}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&req)
 	if err != nil {
