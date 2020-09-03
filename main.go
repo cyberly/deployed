@@ -142,7 +142,7 @@ func notifyPipeline(v reqBody) {
 	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(":"+*v.AuthToken)))
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		log.Println(err.Error())
+		log.Printf("Error talking to Azure Devops: %v", err.Error())
 	}
 	defer resp.Body.Close()
 	log.Printf("[%v] Notified Azure Devops pipeline, got \"%v\"", *v.Namespace, resp.Status)
