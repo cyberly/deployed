@@ -43,18 +43,6 @@ type successBody struct {
 	Result string `json:"result"`
 }
 
-func newK8sClient() *kubernetes.Clientset {
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		panic(err.Error())
-	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		panic(err.Error())
-	}
-	return clientset
-}
-
 func checkImage(i string, containers []corev1.Container) bool {
 	for _, c := range containers {
 		if c.Image == i {
@@ -63,10 +51,6 @@ func checkImage(i string, containers []corev1.Container) bool {
 	}
 	return false
 
-}
-
-func checkGeneration(d v1.Deployment) bool {
-	return d.ObjectMeta.Generation == d.Status.ObservedGeneration
 }
 
 func checkConditions(conditions []v1.DeploymentCondition) bool {
@@ -83,16 +67,6 @@ func checkConditions(conditions []v1.DeploymentCondition) bool {
 		return true
 	}
 	return false
-}
-
-func checkReplicas(d v1.Deployment) bool {
-	if d.Status.UpdatedReplicas != *d.Spec.Replicas {
-		return false
-	}
-	if d.Status.ReadyReplicas != *d.Spec.Replicas {
-		return false
-	}
-	return true
 }
 
 func checkDeployStatus(e interface{}, ch chan bool, image string) {
@@ -113,11 +87,62 @@ func checkDeployStatus(e interface{}, ch chan bool, image string) {
 	ch <- true
 }
 
+func checkGeneration(d v1.Deployment) bool {
+	return d.ObjectMeta.Generation == d.Status.ObservedGeneration
+}
+
+func checkReplicas(d v1.Deployment) bool {
+	if d.Status.UpdatedReplicas != *d.Spec.Replicas {
+		return false
+	}
+	if d.Status.ReadyReplicas != *d.Spec.Replicas {
+		return false
+	}
+	return true
+}
+
 func convertEvent(o interface{}) v1.Deployment {
 	var d v1.Deployment
 	j, _ := json.Marshal(o)
 	json.Unmarshal(j, &d)
 	return d
+}
+
+func newK8sClient() *kubernetes.Clientset {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		panic(err.Error())
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+	return clientset
+}
+
+func notifyPipeline(v verifyReq) {
+	payload := &successBody{
+		Name:   "TaskCompleted",
+		TaskID: *v.TaskInstanceID,
+		JobID:  *v.JobID,
+		Result: "successed",
+	}
+	p, err := json.Marshal(payload)
+	if err != nil {
+		log.Println(err.Error())
+	}
+	url := *v.PlanURL + *v.ProjectID + "/_apis/distributedtask/hubs/" + *v.HubName + "/plans/" + *v.PlanID + "/events?api-version=2.0-preview.1"
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(p))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(":"+*v.AuthToken)))
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println(err.Error())
+	}
+	defer resp.Body.Close()
+	log.Printf("[%v] Notified Azure Devops pipeline, got \"%v\"", *v.Namespace, resp.Status)
+
 }
 
 func watchDeploymentEvents(req verifyReq) {
@@ -151,31 +176,6 @@ func watchDeploymentEvents(req verifyReq) {
 		log.Printf("[%v] Timeout exceeded looking for %v", req.Namespace, req.Image)
 	}
 	close(listenerCh)
-}
-
-func notifyPipeline(v verifyReq) {
-	payload := &successBody{
-		Name:   "TaskCompleted",
-		TaskID: *v.TaskInstanceID,
-		JobID:  *v.JobID,
-		Result: "successed",
-	}
-	p, err := json.Marshal(payload)
-	if err != nil {
-		log.Println(err.Error())
-	}
-	url := *v.PlanURL + *v.ProjectID + "/_apis/distributedtask/hubs/" + *v.HubName + "/plans/" + *v.PlanID + "/events?api-version=2.0-preview.1"
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(p))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(":"+*v.AuthToken)))
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Println(err.Error())
-	}
-	defer resp.Body.Close()
-	log.Printf("[%v] Notified Azure Devops pipeline, got \"%v\"", *v.Namespace, resp.Status)
-
 }
 
 func verifyHandler(w http.ResponseWriter, r *http.Request) {
