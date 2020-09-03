@@ -129,7 +129,7 @@ func notifyPipeline(v verifyReq) {
 	}
 	p, err := json.Marshal(payload)
 	if err != nil {
-		log.Println(err.Error())
+		log.Printf("Failed to build pipeline poayload: %v", err.Error())
 	}
 	url := *v.PlanURL + *v.ProjectID + "/_apis/distributedtask/hubs/" + *v.HubName + "/plans/" + *v.PlanID + "/events?api-version=2.0-preview.1"
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(p))
