@@ -59,14 +59,21 @@ func checkDeployStatus(e interface{}, ch chan bool, image string) {
 	d := convertEvent(e)
 	for _, c := range d.Spec.Template.Spec.Containers {
 		if c.Image == image {
-			deployed = true
-			log.Printf("[%v] %v running %v (%v updated, %v ready, %v desired)",
-				d.ObjectMeta.Namespace,
-				d.ObjectMeta.Name,
-				image,
-				d.Status.UpdatedReplicas,
-				d.Status.ReadyReplicas,
-				*d.Spec.Replicas)
+			if d.ObjectMeta.Generation != d.Status.ObservedGeneration {
+				log.Printf("[%v] %v updated to use %v, waiting for rollout",
+					d.ObjectMeta.Namespace,
+					d.ObjectMeta.Name,
+					image)
+				deployed = false
+			} else {
+				log.Printf("[%v] %v updated (Pods: %v updated, %v ready, %v desired)",
+					d.ObjectMeta.Namespace,
+					d.ObjectMeta.Name,
+					d.Status.UpdatedReplicas,
+					d.Status.ReadyReplicas,
+					*d.Spec.Replicas)
+				deployed = true
+			}
 		}
 	}
 	if d.Status.UpdatedReplicas < *d.Spec.Replicas {
