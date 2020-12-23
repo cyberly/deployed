@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: deployed
-        image: cyberly/deployed:1.0
+        image: cyberly/deployed:1.04
         ports:
         - containerPort: 80
         resources:
