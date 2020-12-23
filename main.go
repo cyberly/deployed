@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -137,6 +138,11 @@ func convertEvent(o interface{}) appsv1.Deployment {
 	return d
 }
 
+func isURLInvalid(u string) bool {
+	v, err := url.Parse(u)
+	return err != nil || v.Scheme == "" || v.Host == ""
+}
+
 func newK8sClient() *kubernetes.Clientset {
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -209,6 +215,10 @@ func verifyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Image == nil {
 		log.Println("Request body must contain image attribute")
+		return
+	}
+	if isURLInvalid(*req.PlanURL) {
+		log.Println("Invalid plan URL.")
 		return
 	}
 	*req.Image = strings.ToLower(*req.Image)
