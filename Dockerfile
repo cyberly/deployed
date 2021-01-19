@@ -10,7 +10,7 @@ WORKDIR $GOPATH/src/github.com/cbyerly/deployed
 COPY . .
 
 RUN go get -d ./...
-RUN go build -o /deployed main.go
+RUN go build -o /deployed cmd/deployed/deployed.go
 
 FROM alpine:latest
 RUN apk update \
