@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-func buildPipelinePayload(r reqBody) []byte {
+func buildPipelinePayload(r verifyRequest) []byte {
 	payload := map[string]string{
 		"Name":   "TaskCompleted",
 		"TaskID": *r.TaskInstanceID,
@@ -22,7 +22,7 @@ func buildPipelinePayload(r reqBody) []byte {
 	return p
 }
 
-func buildPipelineRequest(r reqBody) *http.Request {
+func buildPipelineRequest(r verifyRequest) *http.Request {
 	req, err := http.NewRequest("POST",
 		buildPipelineURL(r),
 		bytes.NewBuffer(buildPipelinePayload(r)))
@@ -35,7 +35,7 @@ func buildPipelineRequest(r reqBody) *http.Request {
 	return req
 }
 
-func buildPipelineURL(r reqBody) string {
+func buildPipelineURL(r verifyRequest) string {
 	return *r.PlanURL + *r.ProjectID + "/_apis/distributedtask/hubs/" +
 		*r.HubName +
 		"/plans/" +
@@ -43,7 +43,7 @@ func buildPipelineURL(r reqBody) string {
 		"/events?api-version=2.0-preview.1"
 }
 
-func notifyPipeline(r reqBody) {
+func notifyPipeline(r verifyRequest) {
 	req := buildPipelineRequest(r)
 	resp, err := httpClient.Do(req)
 	if err != nil {

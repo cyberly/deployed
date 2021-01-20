@@ -90,7 +90,7 @@ func newK8sClient() *kubernetes.Clientset {
 	return clientset
 }
 
-func watchDeploymentEvents(req reqBody) {
+func watchDeploymentEvents(req verifyRequest) {
 	listenerCh := make(chan struct{})
 	statusCh := make(chan bool)
 	// Configure deployment listener

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-type reqBody struct {
+type verifyRequest struct {
 	Namespace      *string `json:"Namespace"`
 	Image          *string `json:"Image"`
 	Timeout        int     `json:"Timeout"`
@@ -22,7 +22,7 @@ type reqBody struct {
 }
 
 func verifyHandler(w http.ResponseWriter, r *http.Request) {
-	var req = reqBody{}
+	var req = verifyRequest{}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&req)
 	if err != nil {
