@@ -21,6 +21,21 @@ type verifyRequest struct {
 	AuthToken      *string `json:"AuthToken"`
 }
 
+func (v *verifyRequest) getPipeline() pipeline {
+	// Not optimal but maintains compatability
+	p := &pipeline{
+		PlanURL:        *v.PlanURL,
+		ProjectID:      *v.ProjectID,
+		HubName:        *v.HubName,
+		PlanID:         *v.PlanID,
+		JobID:          *v.JobID,
+		TimelineID:     *v.TimelineID,
+		TaskInstanceID: *v.TaskInstanceID,
+		AuthToken:      *v.AuthToken,
+	}
+	return *p
+}
+
 func verifyHandler(w http.ResponseWriter, r *http.Request) {
 	var req = verifyRequest{}
 	decoder := json.NewDecoder(r.Body)

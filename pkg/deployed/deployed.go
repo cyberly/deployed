@@ -18,6 +18,7 @@ var (
 func Bootstrap() {
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/verify", verifyHandler).Methods("POST")
+	router.HandleFunc("/appconfig", appConfigHandler).Methods("POST")
 	log.Fatal(http.ListenAndServe(":80", router))
 }
 

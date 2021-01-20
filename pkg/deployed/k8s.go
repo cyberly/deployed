@@ -116,7 +116,8 @@ func watchDeploymentEvents(req verifyRequest) {
 	go controller.Run(listenerCh)
 	select {
 	case <-statusCh:
-		notifyPipeline(req)
+		reqStatus := notifyPipeline(req.getPipeline())
+		log.Printf("[%v] Notified Azure Devops pipeline, got \"%v\"", *req.Namespace, reqStatus)
 	case <-time.After(time.Duration(req.Timeout) * time.Second):
 		log.Printf("[%v] Timeout exceeded looking for %v", req.Namespace, req.Image)
 	}
